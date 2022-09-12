@@ -10,6 +10,8 @@ use sc_service::{error::Error as ServiceError, Configuration, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
 use std::{sync::Arc, time::Duration};
+use sc_authority_permission::OddSlotPermissionResolver;
+use sp_authority_permission::{AlwaysPermissionGranted, PermissionResolver};
 
 // Our native executor instance.
 pub struct ExecutorDispatch;
@@ -232,6 +234,12 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
 		})
 	};
 
+	let permission_resolver: Box<dyn PermissionResolver> = if let Some(_) = config.remote_authority.clone() {
+		Box::new(OddSlotPermissionResolver {})
+	}else {
+		Box::new(AlwaysPermissionGranted {})
+	};
+
 	let _rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 		network: network.clone(),
 		client: client.clone(),
@@ -281,6 +289,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
 				backoff_authoring_blocks,
 				keystore: keystore_container.sync_keystore(),
 				can_author_with,
+				permission_resolver,
 				sync_oracle: network.clone(),
 				justification_sync_link: network.clone(),
 				block_proposal_slot_portion: SlotProportion::new(2f32 / 3f32),

@@ -222,6 +222,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
 	let name = config.network.node_name.clone();
 	let enable_grandpa = !config.disable_grandpa;
 	let prometheus_registry = config.prometheus_registry().cloned();
+	let remote_authority = config.remote_authority.clone();
 
 	let rpc_extensions_builder = {
 		let client = client.clone();
@@ -232,12 +233,6 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
 				crate::rpc::FullDeps { client: client.clone(), pool: pool.clone(), deny_unsafe };
 			crate::rpc::create_full(deps).map_err(Into::into)
 		})
-	};
-
-	let permission_resolver: Box<dyn PermissionResolver> = if let Some(_) = config.remote_authority.clone() {
-		Box::new(OddSlotPermissionResolver {})
-	}else {
-		Box::new(AlwaysPermissionGranted {})
 	};
 
 	let _rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
@@ -266,6 +261,13 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
 			sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
 
 		let slot_duration = sc_consensus_aura::slot_duration(&*client)?;
+
+		let permission_resolver: Box<dyn PermissionResolver> = if let Some(_) = remote_authority
+		{
+			Box::new(OddSlotPermissionResolver {})
+		}else {
+			Box::new(AlwaysPermissionGranted {})
+		};
 
 		let aura = sc_consensus_aura::start_aura::<AuraPair, _, _, _, _, _, _, _, _, _, _, _>(
 			StartAuraParams {

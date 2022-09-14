@@ -384,12 +384,7 @@ pub fn new_full_base(
 	let name = config.network.node_name.clone();
 	let enable_grandpa = !config.disable_grandpa;
 	let prometheus_registry = config.prometheus_registry().cloned();
-
-	let permission_resolver: Box<dyn PermissionResolver> = if let Some(_) = config.remote_authority.clone() {
-		Box::new(OddSlotPermissionResolver {})
-	}else {
-		Box::new(AlwaysPermissionGranted {})
-	};
+	let remote_authority = config.remote_authority.clone();
 
 	let rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 		config,
@@ -432,6 +427,12 @@ pub fn new_full_base(
 
 		let can_author_with =
 			sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
+
+		let permission_resolver: Box<dyn PermissionResolver> = if let Some(_) = remote_authority {
+			Box::new(OddSlotPermissionResolver {})
+		}else {
+			Box::new(AlwaysPermissionGranted {})
+		};
 
 		let client_clone = client.clone();
 		let slot_duration = babe_link.config().slot_duration();
